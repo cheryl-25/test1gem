@@ -1,29 +1,206 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>DeKUT Chatbot</title>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeKUT Assistant Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="chat-container">
+        <!-- Header Section -->
         <div class="chat-header">
-            <h2>🎓 DeKUT Assistant</h2>
-        </div>
-        
-        <div id="chatbox" class="chat-box">
-            <div class="bot-msg">
-                <p>Hello! Ask me about DeKUT admissions, fees, or courses.</p>
+            <div class="header-content">
+                <h1>🎓 DeKUT Assistant</h1>
+                <p>Your AI guide to Dedan Kimathi University of Technology</p>
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">AI Assistant Online</span>
+                </div>
             </div>
         </div>
-
-        <div class="input-area">
-            <input type="text" id="textInput" placeholder="Type your message...">
-            <button onclick="sendUserMessage()">Send</button>
+        
+        <!-- Quick Suggestions -->
+        <div class="suggestions">
+            <p class="suggestion-title">Try asking:</p>
+            <div class="suggestion-buttons">
+                <button class="suggestion-btn" onclick="sendSuggestion('How do I apply for admission?')">
+                    📝 Apply for Admission
+                </button>
+                <button class="suggestion-btn" onclick="sendSuggestion('What are the fees?')">
+                    💰 Fee Structure
+                </button>
+                <button class="suggestion-btn" onclick="sendSuggestion('What courses are offered?')">
+                    🎓 Available Courses
+                </button>
+                <button class="suggestion-btn" onclick="sendSuggestion('How can I contact the university?')">
+                    📞 Contact Info
+                </button>
+            </div>
+        </div>
+        
+        <!-- Chat Messages Area -->
+        <div class="chat-messages" id="chat-messages">
+            <!-- Initial welcome message -->
+            <div class="message bot">
+                <div class="avatar">🤖</div>
+                <div class="message-content">
+                    <div class="message-text">
+                        Hello! I'm DeKUT Assistant, your AI guide to Dedan Kimathi University of Technology. 
+                        I can help you with admissions, fees, courses, accommodation, and more!
+                    </div>
+                    <div class="message-time" id="current-time"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Typing Indicator (hidden by default) -->
+        <div class="typing-indicator" id="typing">
+            <div class="typing-dots">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+            <span class="typing-text">DeKUT Assistant is typing...</span>
+        </div>
+        
+        <!-- Input Area -->
+        <div class="input-container">
+            <input type="text" 
+                   id="user-input" 
+                   class="chat-input" 
+                   placeholder="Ask me about admissions, fees, courses..."
+                   onkeypress="handleKeyPress(event)">
+            <button class="send-button" onclick="sendMessage()">
+                <span class="button-text">Send</span>
+                <span class="button-icon">➤</span>
+            </button>
+        </div>
+        
+        <!-- Footer -->
+        <div class="chat-footer">
+            <p>Powered by AI • Dedan Kimathi University of Technology • 
+               <a href="https://dkut.ac.ke" target="_blank">Official Website</a>
+            </p>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <!-- JavaScript -->
+    <script>
+        // Get DOM elements
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const typingIndicator = document.getElementById('typing');
+        
+        // Set current time in welcome message
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const timeElement = document.getElementById('current-time');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
+        
+        // Update time every minute
+        updateTime();
+        setInterval(updateTime, 60000);
+        
+        // Add a message to chat
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            messageDiv.innerHTML = `
+                <div class="avatar">${sender === 'user' ? '👤' : '🤖'}</div>
+                <div class="message-content">
+                    <div class="message-text">${text}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Show typing indicator
+        function showTyping() {
+            typingIndicator.style.display = 'flex';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Hide typing indicator
+        function hideTyping() {
+            typingIndicator.style.display = 'none';
+        }
+        
+        // Send message when button clicked
+        function sendMessage() {
+            const message = userInput.value.trim();
+            
+            if (!message) {
+                return; // Don't send empty messages
+            }
+            
+            // Add user message to chat
+            addMessage(message, 'user');
+            
+            // Clear input
+            userInput.value = '';
+            
+            // Show typing indicator
+            showTyping();
+            
+            // Send to backend
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide typing indicator
+                hideTyping();
+                
+                // Add bot response to chat
+                if (data.success) {
+                    addMessage(data.response, 'bot');
+                } else {
+                    addMessage("Sorry, something went wrong. Please try again.", 'bot');
+                }
+            })
+            .catch(error => {
+                // Hide typing indicator
+                hideTyping();
+                
+                // Show error message
+                addMessage("Connection error. Please check your internet.", 'bot');
+                console.error('Error:', error);
+            });
+        }
+        
+        // Send suggestion when button clicked
+        function sendSuggestion(text) {
+            userInput.value = text;
+            sendMessage();
+        }
+        
+        // Handle Enter key press
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+        
+        // Focus input field when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            userInput.focus();
+        });
+    </script>
 </body>
 </html>
